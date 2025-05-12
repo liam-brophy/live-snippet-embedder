@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Live Snippet Embedder</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/figma-plugin-ds@1.0.1/dist/figma-plugin-ds.css">
+  <link rel="stylesheet" href="../styles/ui.css">
+  <!-- We can import CodeMirror from node_modules via our bundler -->
+</head>
+<body>
+  <div class="wrapper">
+    <div class="type type--pos-large-bold">Code Snippet Embedder</div>
+    
+    <div class="tabs">
+      <div class="tab active" data-tab="html">HTML</div>
+      <div class="tab" data-tab="css">CSS</div>
+      <div class="tab" data-tab="js">JavaScript</div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Templates</div>
+      <div class="select-wrapper">
+        <select id="template-select" class="select">
+          <option value="">-- Select a Template --</option>
+          <option value="responsive-flexbox">Responsive Flexbox Layout</option>
+          <option value="responsive-grid">Responsive CSS Grid Layout</option>
+          <option value="animated-button">Button with Hover Animation</option>
+          <option value="card-component">Card Component with Transitions</option>
+          <option value="theme-toggle">CSS Variables & Theme Toggle</option>
+          <option value="js-tabs">JavaScript Tabs Interface</option>
+          <option value="modal-dialog">Modal Dialog</option>
+        </select>
+        <div class="icon icon--dropdown icon--black-3"></div>
+      </div>
+    </div>
+    
+    <!-- Add Library section -->
+    <div class="section">
+      <div class="section-title">Snippet Library</div>
+      <div class="library-buttons">
+        <button id="save-to-library" class="button button--secondary">Save to Library</button>
+        <button id="load-from-library" class="button button--secondary">Browse Library</button>
+      </div>
+    </div>
+    
+    <div class="tab-content">
+      <div class="tab-pane active" id="html-pane">
+        <textarea id="html-input" class="input textarea" placeholder="Enter HTML here..." rows="8"></textarea>
+      </div>
+      <div class="tab-pane" id="css-pane">
+        <textarea id="css-input" class="input textarea" placeholder="Enter CSS here..." rows="8"></textarea>
+      </div>
+      <div class="tab-pane" id="js-pane">
+        <textarea id="js-input" class="input textarea" placeholder="Enter JavaScript here..." rows="8"></textarea>
+      </div>
+    </div>
+    
+    <div class="section-title">Live Preview</div>
+    <div class="preview-container">
+      <iframe id="preview" class="preview-frame"></iframe>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Language</div>
+      <div class="select-wrapper">
+        <select id="language-select" class="select">
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="html">HTML</option>
+          <option value="css">CSS</option>
+          <option value="python">Python</option>
+          <option value="ruby">Ruby</option>
+          <option value="java">Java</option>
+          <option value="swift">Swift</option>
+          <option value="go">Go</option>
+          <option value="rust">Rust</option>
+          <option value="cpp">C++</option>
+          <option value="csharp">C#</option>
+          <option value="php">PHP</option>
+          <option value="json">JSON</option>
+          <option value="xml">XML</option>
+          <option value="markdown">Markdown</option>
+          <option value="sql">SQL</option>
+          <option value="bash">Bash</option>
+        </select>
+        <div class="icon icon--dropdown icon--black-3"></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Theme</div>
+      <div class="select-wrapper">
+        <select id="theme-select" class="select">
+          <option value="dracula">Dracula</option>
+          <option value="github">GitHub</option>
+          <option value="monokai">Monokai</option>
+          <option value="solarized-light">Solarized Light</option>
+        </select>
+        <div class="icon icon--dropdown icon--black-3"></div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">Font Size</div>
+      <input id="font-size" type="number" class="input input--with-icon" value="14" min="8" max="36">
+      <span class="font-size-unit">px</span>
+    </div>
+    
+    <div class="buttons">
+      <button id="cancel" class="button button--secondary">Cancel</button>
+      <button id="create" class="button button--primary">Create Snippet</button>
+    </div>
+  </div>
+  
+  <!-- Library Modal -->
+  <div id="library-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="type type--pos-medium-bold">Snippet Library</h2>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="snippets-list" id="snippets-list">
+          <!-- Snippet items will be inserted here -->
+        </div>
+        <div class="empty-library" id="empty-library">
+          <p>You don't have any saved snippets.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Save to Library Modal -->
+  <div id="save-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="type type--pos-medium-bold">Save to Library</h2>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label for="snippet-name" class="type type--pos-small-bold">Snippet Name:</label>
+          <input type="text" id="snippet-name" class="input" placeholder="Enter a name for your snippet">
+        </div>
+        <div class="input-group">
+          <label for="snippet-description" class="type type--pos-small-bold">Description (optional):</label>
+          <textarea id="snippet-description" class="input textarea" placeholder="Enter a description" rows="3"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button id="cancel-save" class="button button--secondary">Cancel</button>
+          <button id="confirm-save" class="button button--primary">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="../src/ui.js"></script>
+</body>
+</html>

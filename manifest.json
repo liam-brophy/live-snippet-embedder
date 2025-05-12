@@ -1,0 +1,25 @@
+{
+  "name": "Live Snippet Embedder",
+  "id": "live-snippet-embedder",
+  "api": "1.0.0",
+  "main": "src/code.js",
+  "ui": "src/ui.html",
+  "editorType": ["figma"],
+  "menu": [
+    {
+      "name": "Insert Code Snippet",
+      "command": "insert-snippet"
+    },
+    {
+      "name": "Edit Snippet",
+      "command": "edit-snippet"
+    },
+    {
+      "separator": true
+    },
+    {
+      "name": "About",
+      "command": "about"
+    }
+  ]
+}

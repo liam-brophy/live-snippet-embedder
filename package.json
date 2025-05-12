@@ -1,0 +1,37 @@
+{
+  "name": "live-snippet-embedder",
+  "version": "1.0.0",
+  "description": "A Figma plugin to embed and style live code snippets in your designs",
+  "main": "src/code.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.64.0",
+    "esbuild": "^0.25.4",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.3",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.36.8",
+    "figma-plugin-ds": "^1.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liam-brophy/live-snippet-embedder.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/liam-brophy/live-snippet-embedder/issues"
+  },
+  "homepage": "https://github.com/liam-brophy/live-snippet-embedder#readme"
+}
