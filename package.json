@@ -23,7 +23,8 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/theme-one-dark": "^6.1.2",
     "@codemirror/view": "^6.36.8",
-    "figma-plugin-ds": "^1.0.1"
+    "figma-plugin-ds": "^1.0.1",
+    "prettier": "^3.5.3"
   },
   "repository": {
     "type": "git",

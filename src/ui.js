@@ -1,6 +1,20 @@
 // UI Controls
 import { createEditors, getEditorContents, setEditorContents } from './editors.js';
 import { templates } from './templates.js';
+import { formatHTML, formatCSS, formatJS } from './formatter.js';
+
+// HTML Sanitization function to prevent XSS
+function sanitizeHtml(html) {
+  // Basic sanitization to prevent XSS
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  
+  // Remove potentially dangerous elements/attributes
+  const scripts = doc.querySelectorAll('script[src], iframe[src], object, embed');
+  scripts.forEach(el => el.remove());
+  
+  return doc.body.innerHTML;
+}
 
 // UI elements
 const languageSelect = document.getElementById('language-select');
@@ -47,6 +61,14 @@ loadButton.className = 'button button--secondary';
 loadButton.style.marginRight = '8px';
 document.querySelector('.buttons').prepend(loadButton);
 
+// Add format code button to the UI
+const formatButton = document.createElement('button');
+formatButton.textContent = 'Format Code';
+formatButton.id = 'format-button';
+formatButton.className = 'button button--secondary';
+formatButton.style.marginRight = '8px';
+document.querySelector('.buttons').prepend(formatButton);
+
 // Initialize UI state
 let isEditMode = false;
 let debounceTimer;
@@ -70,7 +92,18 @@ function saveSnippets(snippets) {
 function addSnippet(snippet) {
   const snippets = getSnippets();
   
-  // Create a new snippet object with metadata
+  // Create a new version entry
+  const initialVersion = {
+    timestamp: new Date().toISOString(),
+    html: snippet.html || '',
+    css: snippet.css || '',
+    js: snippet.js || '',
+    language: snippet.language || 'html',
+    theme: snippet.theme || 'dracula',
+    fontSize: snippet.fontSize || 14
+  };
+  
+  // Create a new snippet object with metadata and version history
   const newSnippet = {
     id: Date.now().toString(), // Simple unique ID based on timestamp
     name: snippet.name,
@@ -83,7 +116,9 @@ function addSnippet(snippet) {
     js: snippet.js || '',
     language: snippet.language || 'html',
     theme: snippet.theme || 'dracula',
-    fontSize: snippet.fontSize || 14
+    fontSize: snippet.fontSize || 14,
+    // Add version history
+    versions: [initialVersion]
   };
   
   snippets.push(newSnippet);
@@ -98,6 +133,28 @@ function updateSnippet(id, updatedData) {
   const index = snippets.findIndex(s => s.id === id);
   
   if (index !== -1) {
+    // Create a new version entry
+    const newVersion = {
+      timestamp: new Date().toISOString(),
+      html: updatedData.html || snippets[index].html || '',
+      css: updatedData.css || snippets[index].css || '',
+      js: updatedData.js || snippets[index].js || '',
+      language: updatedData.language || snippets[index].language || 'html',
+      theme: updatedData.theme || snippets[index].theme || 'dracula',
+      fontSize: updatedData.fontSize || snippets[index].fontSize || 14
+    };
+    
+    // Initialize versions array if it doesn't exist
+    if (!snippets[index].versions) {
+      snippets[index].versions = [];
+    }
+    
+    // Add new version to history (limit to last 10 versions)
+    snippets[index].versions.unshift(newVersion);
+    if (snippets[index].versions.length > 10) {
+      snippets[index].versions = snippets[index].versions.slice(0, 10);
+    }
+    
     // Update the snippet with new data while preserving the ID and creation date
     snippets[index] = {
       ...snippets[index],
@@ -164,6 +221,7 @@ function renderSnippetsList() {
         <div class="snippet-actions">
           <span class="snippet-action snippet-rename" title="Rename">✏️</span>
           <span class="snippet-action snippet-delete" title="Delete">🗑️</span>
+          <span class="snippet-action snippet-history" title="Version History">🕒</span>
         </div>
       </div>
       ${snippet.description ? `<div class="snippet-description">${snippet.description}</div>` : ''}
@@ -203,6 +261,12 @@ function renderSnippetsList() {
         });
         renderSnippetsList();
       }
+    });
+    
+    // Add history button event handler if it exists
+    snippetItem.querySelector('.snippet-history')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showVersionHistory(snippet.id);
     });
     
     snippetsList.appendChild(snippetItem);
@@ -245,7 +309,95 @@ function loadSnippetFromLibrary(id) {
 // Event handlers for the library modals
 function openLibraryModal() {
   renderSnippetsList();
+  enhanceLibraryModal();
   libraryModal.style.display = 'flex';
+}
+
+// Function to enhance library modal with search functionality
+function enhanceLibraryModal() {
+  // Check if search container already exists
+  if (document.getElementById('snippet-search')) {
+    return;
+  }
+  
+  // Create search container
+  const searchContainer = document.createElement('div');
+  searchContainer.className = 'search-container';
+  searchContainer.style.margin = '0 0 16px 0';
+  searchContainer.innerHTML = `
+    <input type="text" id="snippet-search" class="input" placeholder="Search snippets...">
+    <div class="tags-container" id="snippet-tags" style="display: flex; flex-wrap: wrap; margin-top: 8px;"></div>
+  `;
+  
+  // Insert search before snippets list
+  const modalBody = document.querySelector('#library-modal .modal-body');
+  modalBody.insertBefore(searchContainer, modalBody.firstChild);
+  
+  // Add search functionality
+  const searchInput = document.getElementById('snippet-search');
+  searchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    filterSnippets(searchTerm);
+  });
+  
+  // Generate and render tags
+  renderSnippetTags();
+}
+
+// Function to filter snippets based on search term
+function filterSnippets(term) {
+  const snippetItems = document.querySelectorAll('.snippet-item');
+  let hasResults = false;
+  
+  snippetItems.forEach(item => {
+    const name = item.querySelector('.snippet-name').textContent.toLowerCase();
+    const description = item.querySelector('.snippet-description')?.textContent.toLowerCase() || '';
+    const language = item.querySelector('.snippet-language').textContent.toLowerCase();
+    
+    if (name.includes(term) || description.includes(term) || language.includes(term)) {
+      item.style.display = 'block';
+      hasResults = true;
+    } else {
+      item.style.display = 'none';
+    }
+  });
+  
+  // Show/hide empty message
+  const emptyLibrary = document.getElementById('empty-library');
+  if (!hasResults && term) {
+    emptyLibrary.style.display = 'block';
+    emptyLibrary.innerHTML = `<p>No snippets found matching "${term}".</p>`;
+  } else {
+    emptyLibrary.style.display = 'none';
+  }
+}
+
+// Function to extract and render tags
+function renderSnippetTags() {
+  const snippets = getSnippets();
+  const tagsContainer = document.getElementById('snippet-tags');
+  
+  // Clear existing tags
+  if (!tagsContainer) return;
+  tagsContainer.innerHTML = '';
+  
+  if (snippets.length === 0) return;
+  
+  // Extract all languages used
+  const languages = [...new Set(snippets.map(s => s.language))];
+  
+  // Add language tags
+  languages.forEach(lang => {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = lang.toUpperCase();
+    tag.style.cssText = 'margin: 4px 8px 4px 0; padding: 2px 8px; background: #e5e5e5; border-radius: 4px; font-size: 12px; cursor: pointer;';
+    tag.addEventListener('click', () => {
+      document.getElementById('snippet-search').value = lang;
+      filterSnippets(lang.toLowerCase());
+    });
+    tagsContainer.appendChild(tag);
+  });
 }
 
 function closeLibraryModal() {
@@ -338,9 +490,11 @@ function debounceUpdate() {
 function updatePreview(html, css, js) {
   try {
     const iframe = document.getElementById("preview");
+    const sanitizedHtml = sanitizeHtml(html);
     const fullCode = `
     <html>
       <head>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
         <style>${css}</style>
         <script>
           // Error handling for JS execution
@@ -353,7 +507,7 @@ function updatePreview(html, css, js) {
           };
         </script>
       </head>
-      <body>${html}<script>${js}<\/script></body>
+      <body>${sanitizedHtml}<script>${js}<\/script></body>
     </html>`;
     
     iframe.srcdoc = fullCode;
@@ -867,3 +1021,142 @@ ${js}
 
 // Export button click handler
 exportButton.addEventListener('click', exportSnippet);
+
+// Format button click handler
+document.getElementById('format-button').addEventListener('click', () => {
+  const activeTab = document.querySelector('.tab.active').getAttribute('data-tab');
+  const { html, css, js } = getEditorContents();
+  
+  try {
+    if (activeTab === 'html') {
+      const formattedHtml = formatHTML(html);
+      setEditorContents(formattedHtml, css, js);
+      updatePreview(formattedHtml, css, js);
+      showNotification('HTML formatted successfully!', 'success');
+    } else if (activeTab === 'css') {
+      const formattedCss = formatCSS(css);
+      setEditorContents(html, formattedCss, js);
+      updatePreview(html, formattedCss, js);
+      showNotification('CSS formatted successfully!', 'success');
+    } else if (activeTab === 'js') {
+      const formattedJS = formatJS(js);
+      setEditorContents(html, css, formattedJS);
+      updatePreview(html, css, formattedJS);
+      showNotification('JavaScript formatted successfully!', 'success');
+    }
+  } catch (error) {
+    console.error('Formatting error:', error);
+    showNotification('Failed to format code: ' + error.message, 'error');
+  }
+});
+
+// Function to show version history for a snippet
+function showVersionHistory(snippetId) {
+  const snippets = getSnippets();
+  const snippet = snippets.find(s => s.id === snippetId);
+  
+  if (!snippet || !snippet.versions || snippet.versions.length <= 1) {
+    showNotification('No version history available', 'info');
+    return;
+  }
+  
+  // Create and display version history modal
+  const historyModal = document.createElement('div');
+  historyModal.className = 'modal';
+  historyModal.style.display = 'flex';
+  historyModal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="type type--pos-medium-bold">Version History: ${snippet.name}</h2>
+        <span class="modal-close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="versions-list">
+          ${snippet.versions.map((version, index) => `
+            <div class="version-item" data-index="${index}">
+              <div class="version-date">Version ${index + 1}: ${new Date(version.timestamp).toLocaleString()}</div>
+              <div class="version-actions">
+                <button class="button button--secondary version-restore">Restore</button>
+                <button class="button button--secondary version-preview">Preview</button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(historyModal);
+  
+  // Close button handler
+  historyModal.querySelector('.modal-close').addEventListener('click', () => {
+    historyModal.remove();
+  });
+  
+  // Restore version handler
+  historyModal.querySelectorAll('.version-restore').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const index = parseInt(e.target.closest('.version-item').dataset.index);
+      const version = snippet.versions[index];
+      
+      setEditorContents(version.html, version.css, version.js);
+      updatePreview(version.html, version.css, version.js);
+      
+      showNotification(`Restored version from ${new Date(version.timestamp).toLocaleString()}`, 'success');
+      historyModal.remove();
+    });
+  });
+  
+  // Preview version handler
+  historyModal.querySelectorAll('.version-preview').forEach(button => {
+    button.addEventListener('click', (e) => {
+      const index = parseInt(e.target.closest('.version-item').dataset.index);
+      const version = snippet.versions[index];
+      
+      // Create a temporary preview modal
+      const previewModal = document.createElement('div');
+      previewModal.className = 'modal';
+      previewModal.style.display = 'flex';
+      previewModal.innerHTML = `
+        <div class="modal-content" style="width: 80%; height: 80%;">
+          <div class="modal-header">
+            <h2 class="type type--pos-medium-bold">Preview of version from ${new Date(version.timestamp).toLocaleString()}</h2>
+            <span class="modal-close">&times;</span>
+          </div>
+          <div class="modal-body" style="height: 80%;">
+            <iframe id="version-preview" style="width: 100%; height: 100%; border: 1px solid #ddd;"></iframe>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(previewModal);
+      
+      // Close button handler
+      previewModal.querySelector('.modal-close').addEventListener('click', () => {
+        previewModal.remove();
+      });
+      
+      // Update the preview iframe
+      const iframe = previewModal.querySelector('#version-preview');
+      const fullCode = `
+      <html>
+        <head>
+          <style>${version.css}</style>
+        </head>
+        <body>
+          ${version.html}
+          <script>${version.js}<\/script>
+        </body>
+      </html>`;
+      
+      iframe.srcdoc = fullCode;
+    });
+  });
+  
+  // Close when clicking outside modal content
+  historyModal.addEventListener('click', (e) => {
+    if (e.target === historyModal) {
+      historyModal.remove();
+    }
+  });
+}
